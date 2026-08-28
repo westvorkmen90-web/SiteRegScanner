@@ -29,23 +29,68 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      - - name: Extract project
-  run: |
-    mkdir -p build-project
-    ZIP_FILE=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
-    if [ -z "$ZIP_FILE" ]; then
-      echo "ERROR: ZIP project archive not found"
-      exit 1
-    fi
-    echo "Using project archive: $ZIP_FILE"
-    unzip -q "$ZIP_FILE" -d build-project
-      - name: Build APK
-        working-directory: build-project
+      - name: Extract project
         run: |
-          gradle :app:assembleDebug --no-daemon
+          mkdir -p build-project
+          ZIP_FILE=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: ZIP project archive not found"
+            exit 1
+          fi
+
+          echo "Using project archive: $ZIP_FILE"
+          unzip -q "$ZIP_FILE" -d build-project
+
+      - name: Find Gradle project
+        run: |
+          echo "Searching for Gradle project..."
+
+          if [ -f "build-project/settings.gradle" ] || [ -f "build-project/settings.gradle.kts" ]; then
+            echo "Gradle project found in build-project"
+          else
+            PROJECT_DIR=$(find build-project -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) -printf '%h\n' | head -n 1)
+
+            if [ -z "$PROJECT_DIR" ]; then
+              echo "ERROR: Gradle project not found"
+              find build-project -maxdepth 3 -type f | head -100
+              exit 1
+            fi
+
+            echo "Gradle project found in: $PROJECT_DIR"
+            echo "$PROJECT_DIR" > project-dir.txt
+          fi
+
+      - name: Build APK
+        run: |
+          if [ -f "project-dir.txt" ]; then
+            PROJECT_DIR=$(cat project-dir.txt)
+          else
+            PROJECT_DIR="build-project"
+          fi
+
+          cd "$PROJECT_DIR"
+
+          echo "Building project in: $(pwd)"
+
+          gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Find APK
+        run: |
+          echo "Searching for APK..."
+
+          APK=$(find build-project -type f -name "*.apk" | head -n 1)
+
+          if [ -z "$APK" ]; then
+            echo "ERROR: APK was not created"
+            exit 1
+          fi
+
+          echo "APK found: $APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: SiteRegScanner-APK
-          path: build-project/app/build/outputs/apk/debug/*.apk
+          path: build-project/**/*.apk
+          if-no-files-found: error
