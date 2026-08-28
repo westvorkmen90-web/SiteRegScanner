@@ -47,40 +47,42 @@ jobs:
           unzip -q "$ZIP_FILE" -d build-project
 
           echo "Extracted files:"
-          find build-project -maxdepth 3 -type f | head -100
+          find build-project -maxdepth 4 -type f | head -200
 
       - name: Find Gradle project
         run: |
           set -e
 
-          GRADLEW=$(find build-project -type f -name "gradlew" | head -n 1)
+          SETTINGS_FILE=$(find build-project \
+            -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) \
+            | head -n 1)
 
-          if [ -z "$GRADLEW" ]; then
-            echo "ERROR: gradlew not found!"
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "ERROR: settings.gradle or settings.gradle.kts not found!"
+            echo "Files in archive:"
+            find build-project -maxdepth 5 -type f
             exit 1
           fi
 
-          PROJECT_DIR=$(dirname "$GRADLEW")
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
 
           echo "Gradle project found:"
           echo "$PROJECT_DIR"
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Make Gradle executable
-        run: |
-          chmod +x "$PROJECT_DIR/gradlew"
-
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          ./gradlew :app:assembleDebug --no-daemon
+          gradle :app:assembleDebug --no-daemon
 
       - name: Find APK
         run: |
           set -e
 
-          APK=$(find "$PROJECT_DIR" -type f -name "*.apk" | head -n 1)
+          APK=$(find "$PROJECT_DIR" \
+            -type f -name "*.apk" \
+            | head -n 1)
 
           if [ -z "$APK" ]; then
             echo "ERROR: APK not found!"
