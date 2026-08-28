@@ -32,7 +32,7 @@ jobs:
       - name: Extract project
         run: |
           mkdir build-project
-          unzip -q SiteRegScanner_v1.1_fixed_BuildAPK.zip -d build-project
+          unzip -q unzip -q SiteRegScanner_v1.1_fixed_BuildAPK_v2.zip -d build-project -d build-project
 
       - name: Build APK
         working-directory: build-project
